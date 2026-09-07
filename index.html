@@ -361,6 +361,98 @@
     box-shadow: 0 0 18px rgba(0, 243, 255, 0.16), inset 0 0 12px rgba(0, 243, 255, 0.06);
   }
 
+  /* ============ FOCUS CONTROLS ============ */
+  .controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    padding: 13px 22px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.14);
+    background: linear-gradient(180deg, rgba(0, 243, 255, 0.022), transparent);
+  }
+  .ctl-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2.6px;
+    text-transform: uppercase;
+    color: var(--gold-soft);
+  }
+  .ctl-label i {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 9px var(--cyan), 0 0 18px rgba(0, 243, 255, 0.5);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  .seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.02);
+    box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.35);
+  }
+  .seg-btn {
+    appearance: none;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 7px 16px;
+    border-radius: 999px;
+    transition: color 0.22s ease, background-color 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  }
+  .seg-btn:hover { color: var(--gold-bright); }
+  .seg-btn.active {
+    color: var(--cyan);
+    border-color: rgba(0, 243, 255, 0.55);
+    background: linear-gradient(180deg, rgba(0, 243, 255, 0.16), rgba(0, 243, 255, 0.05));
+    box-shadow: 0 0 16px rgba(0, 243, 255, 0.22), inset 0 0 10px rgba(0, 243, 255, 0.08);
+  }
+  .ctl-status {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    transition: color 0.25s ease, text-shadow 0.25s ease;
+  }
+  body.f-on .ctl-status {
+    color: var(--cyan-soft);
+    text-shadow: 0 0 12px rgba(0, 243, 255, 0.45);
+  }
+
+  /* focus filter visual states */
+  body.f-on tbody tr.no-match td {
+    opacity: 0.30;
+    filter: saturate(0.35) brightness(0.74);
+  }
+  body.f-on tr.no-match td.day::before { box-shadow: none; }
+  body.f-on .task.off { opacity: 0.32; }
+  body.f-on .task.on:not(.gym) { text-shadow: 0 0 12px currentColor; }
+  body.f-on .task.on.py { color: #8FFBFF; }
+  body.f-on .task.on.study { color: #D9E9FF; }
+  body.f-on .task.gym.on {
+    border-color: var(--cyan);
+    background: linear-gradient(180deg, rgba(0, 243, 255, 0.24), rgba(0, 243, 255, 0.06));
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.5), inset 0 0 16px rgba(0, 243, 255, 0.14);
+  }
+
+  @media (max-width: 760px) {
+    .ctl-status { margin-left: 0; width: 100%; }
+  }
+
   /* ============ LEGEND ============ */
   .legend {
     border-top: 1px solid rgba(212, 175, 55, 0.20);
@@ -437,7 +529,7 @@
     <div class="banner-left">
       <div class="badge"><span class="pulse"></span>Active Protocol</div>
       <h1>Weekly <span class="accent">Matrix</span></h1>
-      <p class="sub">Royale Cyber Academic <b>//</b> Schedule Grid <b>//</b> V2.0</p>
+      <p class="sub">Royale Cyber Academic <b>//</b> Schedule Grid <b>//</b> V3.0</p>
     </div>
     <div class="banner-right">
       <div class="sys">SYS.LT-07 // UPLINK STABLE</div>
@@ -470,6 +562,16 @@
           </thead>
           <tbody id="tbody"></tbody>
         </table>
+      </div>
+
+      <div class="controls">
+        <span class="ctl-label"><i></i>Focus Mode</span>
+        <div class="seg" role="group" aria-label="Filter schedule blocks">
+          <button type="button" class="seg-btn active" data-mode="all" aria-pressed="true">All</button>
+          <button type="button" class="seg-btn" data-mode="gym" aria-pressed="false">Gym</button>
+          <button type="button" class="seg-btn" data-mode="study" aria-pressed="false">Python / Study</button>
+        </div>
+        <span class="ctl-status" id="ctlStatus">Filter: None — All Blocks Active</span>
       </div>
 
       <div class="legend">
@@ -612,6 +714,7 @@ SCHEDULE.forEach((row, i) => {
     cell.tasks.forEach(tk => {
       const span = document.createElement('span');
       span.className = 'task ' + tk.k;
+      span.dataset.k = tk.k;
       const dot = document.createElement('i');
       dot.className = 'dot';
       span.appendChild(dot);
@@ -633,6 +736,41 @@ SCHEDULE.forEach((row, i) => {
 
   tb.appendChild(tr);
 });
+
+// ===== FOCUS FILTER (Gym / Python-Study spotlight) =====
+const rows = Array.from(tb.querySelectorAll('tr'));
+const modeBtns = Array.from(document.querySelectorAll('.seg-btn'));
+const ctlStatus = document.getElementById('ctlStatus');
+const MATCH_KINDS = { gym: ['gym'], study: ['py', 'study'] };
+const MODE_LABELS = {
+  all:   'Filter: None — All Blocks Active',
+  gym:   'Filter: Gym — Spotlit',
+  study: 'Filter: Python / Study — Spotlit'
+};
+
+function applyFilter(mode) {
+  const kinds = MATCH_KINDS[mode];
+  rows.forEach(tr => {
+    const spans = tr.querySelectorAll('.task');
+    let hasMatch = false;
+    spans.forEach(s => {
+      const on = kinds ? kinds.includes(s.dataset.k) : false;
+      if (on) hasMatch = true;
+      s.classList.toggle('on', on);
+      s.classList.toggle('off', !!kinds && !on);
+    });
+    tr.classList.toggle('no-match', !!kinds && !hasMatch);
+  });
+  document.body.classList.toggle('f-on', !!kinds);
+  ctlStatus.textContent = MODE_LABELS[mode];
+  modeBtns.forEach(b => {
+    const active = b.dataset.mode === mode;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', String(active));
+  });
+}
+
+modeBtns.forEach(b => b.addEventListener('click', () => applyFilter(b.dataset.mode)));
 
 // Header date
 (function () {
